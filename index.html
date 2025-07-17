@@ -1,0 +1,1573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Mines Game</title>
+<style>
+  body {
+    margin: 0;
+    font-family: 'Lexend', sans-serif;
+    background: #031e63;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+  #topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    font-size: 18px;
+    backdrop-filter: blur(6px);
+    background: linear-gradient(
+      to right,
+      rgba(79, 11, 11, 0),
+      rgba(79, 11, 11, 0.5),
+      rgba(79, 11, 11, 0.9),
+      rgba(79, 11, 11, 0.5),
+      rgba(79, 11, 11, 0)
+    );
+    border: 4px solid rgba(20, 11, 11, .5);
+  }
+  #topbar > div {
+    width: 33%;
+    text-align: center;
+    user-select: none;
+  }
+  #topbar > div.left {
+    text-align: left;
+    padding-left: 10px;
+  }
+  #topbar > div.right {
+    text-align: right;
+    padding-right: 10px;
+  }
+  #topbar span.multiplier {
+    display: block;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 3px;
+  }
+  #content {
+    flex-grow: 1;
+    display: flex;
+  }
+  #sidebar {
+    width: 270px;
+    background: rgba(1, 5, 42, 0.5);
+    border-right: 4px solid rgba(1, 2, 13, 0.5);
+    padding: 20px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  #main {
+    flex-grow: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  #game {
+    display: grid;
+    grid-gap: 5px;
+    border: 4px solid rgba(1, 5, 42, 0.5);
+    border-radius: 10px;
+    padding: 10px;
+    background-color: rgba(0 0 0 / 0.2);
+    position: relative;
+    z-index: 1;
+  }
+  .tile {
+    width: 60px;
+    height: 60px;
+    background-image: url('assets/Unselected Tile.png');
+    background-repeat: repeat;
+    background-size: 100px 100px;
+    cursor: pointer;
+    user-select: none;
+    border-radius: 6px;
+    position: relative;
+  }
+  .tile:hover:not(.revealed) {
+    background-image: url('assets/hovered button.png');
+    background-size: 100px 100px;
+  }
+  .tile.revealed {
+    background-image: url('assets/Pressed button.png');
+    background-size: 100px 100px;
+    cursor: default;
+  }
+  .tile.bomb {
+    background-image: url('assets/bomb.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+  }
+  .overlay-icon {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    width: 48px;
+    height: 48px;
+    opacity: 0.4;
+    pointer-events: none;
+    z-index: 10;
+  }
+  .overlay-icon.bomb {
+    background-image: url('assets/bomb.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+  }
+  .overlay-icon.gem {
+    background-image: url('assets/gem.png');
+    background-size: cover;
+    background-repeat: no-repeat;
+  }
+  #debugControls {
+    margin-top: 10px;
+    border-top: 1px solid #555;
+    padding-top: 10px;
+  }
+  label {
+    display: block;
+    margin-bottom: 4px;
+  }
+  input[type="range"], input[type="number"] {
+    width: 100%;
+  }
+  button {
+    padding: 10px 20px;
+    font-size: 16px;
+    background: linear-gradient(to bottom, rgba(4,3,56,0.11), rgba(37,2,7,0.7), rgb(37,2,7));
+    color: rgb(79, 11, 11);
+    border: 3px solid #07011f;
+    cursor: pointer;
+    border-radius: 5px;
+    backdrop-filter: blur(3px);
+    transition: opacity 0.3s ease;
+  }
+  button:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+  #bankDisplay {
+    position: fixed;
+    bottom: 15px;
+    left: 15px;
+    background: rgba(20,20,60,0.8);
+    padding: 12px 20px;
+    font-size: 18px;
+    border-radius: 8px;
+    user-select: none;
+    color: #ddd;
+    font-family: 'Lexend', sans-serif;
+    z-index: 10;
+  }
+  #cheatIndicator {
+    position: fixed;
+    bottom: 15px;
+    right: 15px;
+    background: rgba(150, 0, 0, 0.85);
+    color: white;
+    font-weight: bold;
+    padding: 8px 15px;
+    border-radius: 6px;
+    font-family: 'Lexend', sans-serif;
+    display: none;
+    z-index: 11;
+  }
+
+  #sessionModal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: none;
+    z-index: 1000;
+    backdrop-filter: blur(5px);
+  }
+
+  #sessionModalContent {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(
+      to bottom,
+      rgba(1, 5, 42, 0.95),
+      rgba(3, 30, 99, 0.95)
+    );
+    border: 4px solid rgba(79, 11, 11, 0.8);
+    border-radius: 15px;
+    padding: 30px;
+    text-align: center;
+    color: white;
+    font-family: 'Lexend', sans-serif;
+    min-width: 300px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  }
+
+  #sessionModalContent h2 {
+    margin: 0 0 20px 0;
+    color: #ff6b6b;
+    font-size: 24px;
+  }
+
+  #sessionModalContent p {
+    margin: 0 0 25px 0;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  #recheckBtn {
+    background: linear-gradient(to bottom, rgba(79, 11, 11, 0.8), rgba(150, 0, 0, 0.9));
+    color: white;
+    border: 3px solid rgba(20, 11, 11, 0.8);
+    padding: 12px 25px;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Lexend', sans-serif;
+    transition: all 0.3s ease;
+  }
+
+  #recheckBtn:hover {
+    background: linear-gradient(to bottom, rgba(150, 0, 0, 0.9), rgba(200, 0, 0, 1));
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  }
+
+  #recheckBtn:disabled:hover {
+    background: linear-gradient(to bottom, rgba(150, 0, 0, 0.7), rgba(200, 0, 0, 0.8));
+    transform: translateY(-1px);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  }
+
+  #passwordModal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: none;
+    z-index: 1002;
+    backdrop-filter: blur(5px);
+  }
+
+  #passwordModalContent {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(
+      to bottom,
+      rgba(1, 5, 42, 0.95),
+      rgba(3, 30, 99, 0.95)
+    );
+    border: 4px solid rgba(79, 11, 11, 0.8);
+    border-radius: 15px;
+    padding: 30px;
+    text-align: center;
+    color: white;
+    font-family: 'Lexend', sans-serif;
+    min-width: 300px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  }
+
+  #passwordModalContent h2 {
+    margin: 0 0 20px 0;
+    color: #ff6b6b;
+    font-size: 24px;
+  }
+
+  #passwordInput {
+    width: 100%;
+    padding: 12px;
+    margin: 15px 0;
+    background: rgba(0, 0, 0, 0.3);
+    border: 2px solid rgba(79, 11, 11, 0.6);
+    border-radius: 8px;
+    color: white;
+    font-family: 'Lexend', sans-serif;
+    font-size: 16px;
+    box-sizing: border-box;
+  }
+
+  #passwordInput:focus {
+    outline: none;
+    border-color: rgba(255, 107, 107, 0.8);
+    box-shadow: 0 0 10px rgba(255, 107, 107, 0.3);
+  }
+
+  #passwordBtn {
+    background: linear-gradient(to bottom, rgba(79, 11, 11, 0.8), rgba(150, 0, 0, 0.9));
+    color: white;
+    border: 3px solid rgba(20, 11, 11, 0.8);
+    padding: 12px 25px;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Lexend', sans-serif;
+    transition: all 0.3s ease;
+    margin: 0 5px;
+  }
+
+  #passwordBtn:hover {
+    background: linear-gradient(to bottom, rgba(150, 0, 0, 0.9), rgba(200, 0, 0, 1));
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  }
+
+  #cancelBtn {
+    background: linear-gradient(to bottom, rgba(50, 50, 50, 0.8), rgba(100, 100, 100, 0.9));
+    color: white;
+    border: 3px solid rgba(20, 20, 20, 0.8);
+    padding: 12px 25px;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: 'Lexend', sans-serif;
+    transition: all 0.3s ease;
+    margin: 0 5px;
+  }
+
+  #cancelBtn:hover {
+    background: linear-gradient(to bottom, rgba(100, 100, 100, 0.9), rgba(150, 150, 150, 1));
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Game Over Modal */
+  #gameOverModal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: none;
+    z-index: 1003;
+    backdrop-filter: blur(5px);
+  }
+
+  #gameOverModalContent {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(
+      to bottom,
+      rgba(1, 5, 42, 0.95),
+      rgba(3, 30, 99, 0.95)
+    );
+    border: 4px solid rgba(79, 11, 11, 0.8);
+    border-radius: 15px;
+    padding: 30px;
+    text-align: center;
+    color: white;
+    font-family: 'Lexend', sans-serif;
+    min-width: 300px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  }
+
+  #gameOverModalContent h2 {
+    margin: 0 0 20px 0;
+    color: #ff6b6b;
+    font-size: 24px;
+  }
+
+  #gameOverModalContent p {
+    margin: 0 0 25px 0;
+    font-size: 16px;
+    line-height: 1.5;
+  }
+
+  /* Stats Button */
+  #statsBtn {
+    position: fixed;
+    top: 80px;
+    right: 15px;
+    background: linear-gradient(to bottom, rgba(79, 11, 11, 0.8), rgba(150, 0, 0, 0.9));
+    color: white;
+    border: 3px solid rgba(20, 11, 11, 0.8);
+    padding: 8px 15px;
+    font-size: 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-family: 'Lexend', sans-serif;
+    transition: all 0.3s ease;
+    z-index: 100;
+  }
+
+  #statsBtn:hover {
+    background: linear-gradient(to bottom, rgba(150, 0, 0, 0.9), rgba(200, 0, 0, 1));
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  }
+
+  /* Stats Modal */
+  #statsModal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    display: none;
+    z-index: 1004;
+    backdrop-filter: blur(5px);
+  }
+
+  #statsModalContent {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: linear-gradient(
+      to bottom,
+      rgba(1, 5, 42, 0.95),
+      rgba(3, 30, 99, 0.95)
+    );
+    border: 4px solid rgba(79, 11, 11, 0.8);
+    border-radius: 15px;
+    padding: 30px;
+    text-align: center;
+    color: white;
+    font-family: 'Lexend', sans-serif;
+    min-width: 400px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  }
+
+  #statsModalContent h2 {
+    margin: 0 0 20px 0;
+    color: #ff6b6b;
+    font-size: 24px;
+  }
+
+  .stat-item {
+    display: flex;
+    justify-content: space-between;
+    margin: 10px 0;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 8px;
+  }
+
+  .stat-label {
+    font-weight: bold;
+    color: #ddd;
+  }
+
+  .stat-value {
+    color: #ff6b6b;
+    font-weight: bold;
+  }
+
+  /* Confetti */
+  .confetti {
+    position: fixed;
+    width: 10px;
+    height: 10px;
+    background: linear-gradient(45deg, #ff0000, #ff8000, #ffff00, #80ff00, #00ff00, #00ff80, #00ffff, #0080ff, #0000ff, #8000ff, #ff00ff, #ff0080);
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 9999;
+    animation: confettiFall 3s linear forwards;
+  }
+
+  @keyframes confettiFall {
+    0% {
+      transform: translateY(0) rotate(0deg);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(-100vh) rotate(720deg);
+      opacity: 0;
+    }
+  }
+
+  /* Notification */
+  #notification {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: linear-gradient(to bottom, rgba(79, 11, 11, 0.9), rgba(150, 0, 0, 1));
+    color: white;
+    padding: 12px 25px;
+    border-radius: 8px;
+    font-family: 'Lexend', sans-serif;
+    font-size: 14px;
+    z-index: 1005;
+    display: none;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+  }
+
+  #recheckBtn:disabled {
+    opacity: 0.6;
+    cursor: pointer;
+    transform: none;
+  }
+
+  .loading-spinner {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-radius: 50%;
+    border-top-color: white;
+    animation: spin 1s ease-in-out infinite;
+    margin-right: 8px;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>
+</head>
+<body>
+<div id="topbar">
+  <div class="left">
+    Previous: <span id="prevWin">0</span>
+    <span class="multiplier" id="prevMult">x0</span>
+  </div>
+  <div class="center">
+    Current: <span id="winLabel">0</span>
+    <span class="multiplier" id="currMult">x0</span>
+  </div>
+  <div class="right">
+    Next: <span id="nextWin">0</span>
+    <span class="multiplier" id="nextMult">x0</span>
+  </div>
+</div>
+<div id="content">
+  <div id="sidebar">
+    <button id="resetBtn" style="display:none;">Reset Game</button>
+    <button id="cashOutBtn" disabled>Cash Out</button>
+
+    <div class="slider-group">
+      <label>Board Size: <span id="sizeLabel">5</span></label>
+      <input type="range" min="4" max="10" value="4" id="sizeSlider" />
+    </div>
+
+    <div class="slider-group">
+      <label>Wager: <span id="wagerLabel">100</span> pts</label>
+      <input type="range" min="10" max="1000" step="10" value="100" id="wagerSlider" />
+      <input type="number" min="10" max="1000000" id="wagerInput" style="margin-top:5px;"/>
+    </div>
+
+    <div class="slider-group">
+      <label>Mine %: <span id="mineLabel">20% (5 mines)</span></label>
+      <input type="range" min="5" max="90" step="5" value="20" id="mineSlider" />
+      <div>Reward %: <span id="rewardLabel">40%</span></div>
+    </div>
+
+    <div id="debugControls" style="display:none;">
+      <div class="slider-group">
+        <label>User IP: <span id="ipLabel">Loading...</span></label>
+      </div>
+      <div class="slider-group">
+        <label>Gem %: <span id="gemLabel">5%</span></label>
+        <input type="range" min="0" max="100" step="1" value="5" id="gemSlider" />
+      </div>
+      <div class="slider-group">
+        <label>Debug: Tile Multiplier Factor: <span id="multFactorLabel">1.00</span></label>
+        <input type="range" min="0.5" max="100" step="0.05" value="1" id="multFactorSlider" />
+      </div>
+    </div>
+  </div>
+  <div id="main">
+    <div id="game"></div>
+  </div>
+</div>
+<div id="bankDisplay">Bank: 1000 pts</div>
+<div id="cheatIndicator">CHEAT MODE ENABLED</div>
+
+<div id="sessionModal">
+  <div id="sessionModalContent">
+    <h2>🚫 Session Conflict</h2>
+    <p>Another session is already active from this IP address. Please close other tabs first, then click "Recheck" to continue.</p>
+    <button id="recheckBtn">Recheck Session</button>
+  </div>
+</div>
+
+<div id="passwordModal">
+  <div id="passwordModalContent">
+    <h2>🔐 Debug Access</h2>
+    <p>Enter password to access debug mode:</p>
+    <input type="password" id="passwordInput" placeholder="Enter password..." />
+    <div style="margin-top: 20px;">
+      <button id="passwordBtn">Enter</button>
+      <button id="cancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<button id="statsBtn">📊 Stats</button>
+
+<div id="gameOverModal">
+  <div id="gameOverModalContent">
+    <h2 id="gameOverTitle">Game Over</h2>
+    <p id="gameOverMessage">Game ended</p>
+    <button id="gameOverBtn">Continue</button>
+  </div>
+</div>
+
+<div id="statsModal">
+  <div id="statsModalContent">
+    <h2>📊 Game Statistics</h2>
+    <div class="stat-item">
+      <span class="stat-label">Total Points Won:</span>
+      <span class="stat-value" id="totalPointsWon">0</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Games Played:</span>
+      <span class="stat-value" id="gamesPlayed">0</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Perfect Games:</span>
+      <span class="stat-value" id="perfectGames">0</span>
+    </div>
+    <div class="stat-item">
+      <span class="stat-label">Highest Bank:</span>
+      <span class="stat-value" id="highestBank">0</span>
+    </div>
+    <button id="closeStatsBtn" style="margin-top: 20px;">Close</button>
+  </div>
+</div>
+
+<div id="notification"></div>
+
+<script>
+  // --- Globals and elements ---
+  const game = document.getElementById('game');
+  const resetBtn = document.getElementById('resetBtn');
+  const cashOutBtn = document.getElementById('cashOutBtn');
+  const sizeSlider = document.getElementById('sizeSlider');
+  const mineSlider = document.getElementById('mineSlider');
+  const gemSlider = document.getElementById('gemSlider');
+  const wagerSlider = document.getElementById('wagerSlider');
+  const wagerInput = document.getElementById('wagerInput');
+  const sizeLabel = document.getElementById('sizeLabel');
+  const mineLabel = document.getElementById('mineLabel');
+  const gemLabel = document.getElementById('gemLabel');
+  const rewardLabel = document.getElementById('rewardLabel');
+  const wagerLabel = document.getElementById('wagerLabel');
+  const winLabel = document.getElementById('winLabel');
+  const prevWinLabel = document.getElementById('prevWin');
+  const nextWinLabel = document.getElementById('nextWin');
+  const prevMultLabel = document.getElementById('prevMult');
+  const currMultLabel = document.getElementById('currMult');
+  const nextMultLabel = document.getElementById('nextMult');
+  const bankDisplay = document.getElementById('bankDisplay');
+  const debugControls = document.getElementById('debugControls');
+  const multFactorSlider = document.getElementById('multFactorSlider');
+  const multFactorLabel = document.getElementById('multFactorLabel');
+  const cheatIndicator = document.getElementById('cheatIndicator');
+  const ipLabel = document.getElementById('ipLabel');
+  const sessionModal = document.getElementById('sessionModal');
+  const recheckBtn = document.getElementById('recheckBtn');
+  const passwordModal = document.getElementById('passwordModal');
+  const passwordInput = document.getElementById('passwordInput');
+  const passwordBtn = document.getElementById('passwordBtn');
+  const cancelBtn = document.getElementById('cancelBtn');
+  const statsBtn = document.getElementById('statsBtn');
+  const gameOverModal = document.getElementById('gameOverModal');
+  const gameOverTitle = document.getElementById('gameOverTitle');
+  const gameOverMessage = document.getElementById('gameOverMessage');
+  const gameOverBtn = document.getElementById('gameOverBtn');
+  const statsModal = document.getElementById('statsModal');
+  const closeStatsBtn = document.getElementById('closeStatsBtn');
+  const notification = document.getElementById('notification');
+
+  let size = parseInt(sizeSlider.value);
+  let userIP = 'Loading...';
+  let sessionID = null;
+  let passwordVerified = false;
+  
+  // Statistics
+  let totalPointsWon = 0;
+  let gamesPlayed = 0;
+  let perfectGames = 0;
+  let highestBank = 0;
+  
+  let minePercent = parseInt(mineSlider.value);
+  let gemPercent = parseInt(gemSlider.value);
+  let wager = parseInt(wagerSlider.value);
+  let tiles = [];
+  let gameOver = false;
+  let firstClick = true;
+  let tilesRevealed = 0;
+  let wagerDeducted = false;
+  let bankPoints = 1000;
+  let bankPointsBeforeCheats = null;
+  let debugEnabled = false;
+  let cheatMode = false;
+  let tileMultiplierFactor = parseFloat(multFactorSlider.value);
+  
+  // Store original debug settings
+  let originalGemPercent = gemPercent;
+  let originalTileMultiplierFactor = tileMultiplierFactor;
+
+  // --- Helper: Cookies ---
+  function setCookie(name, value, days = 365) {
+    const d = new Date();
+    d.setTime(d.getTime() + days*24*60*60*1000);
+    document.cookie = `${name}=${value};path=/;expires=${d.toUTCString()}`;
+  }
+  function getCookie(name) {
+    const v = document.cookie.match('(^|;)\\s*' + name + '\\s*=\\s*([^;]+)');
+    return v ? v.pop() : null;
+  }
+
+  // --- Format large points ---
+  function formatPoints(n) {
+    if (n < 10000) return n.toString();
+    const e = Math.floor(Math.log10(n));
+    const m = n / Math.pow(10, e);
+    return `${m.toFixed(2)}e${e}`;
+  }
+
+  // --- Update bank display ---
+  function updateBankDisplay() {
+    bankDisplay.textContent = `Bank: ${formatPoints(bankPoints)} pts`;
+  }
+
+  // --- Load bank points ---
+  function loadBank() {
+    const val = parseInt(getCookie('bankPoints'));
+    if (!isNaN(val)) bankPoints = val;
+    updateBankDisplay();
+  }
+
+  // --- Get user IP address ---
+  async function getUserIP() {
+    try {
+      const response = await fetch('https://api.ipify.org?format=json');
+      const data = await response.json();
+      userIP = data.ip;
+      updateDebugDisplay();
+      await checkPasswordVerification(); // Wait for password check first
+      if (!passwordVerified) {
+        checkAndCreateSession(); // Only check session if not verified
+      } else {
+        enableGame(); // Enable game for verified IPs
+      }
+    } catch (error) {
+      userIP = 'Failed to load';
+      updateDebugDisplay();
+    }
+  }
+
+  // --- Simple encryption key ---
+  const ENCRYPTION_KEY = 'Killp00l!2024';
+
+  // --- Simple encryption function ---
+  function encrypt(text) {
+    let result = '';
+    for (let i = 0; i < text.length; i++) {
+      const charCode = text.charCodeAt(i) ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length);
+      result += String.fromCharCode(charCode);
+    }
+    return btoa(result);
+  }
+
+  // --- Simple decryption function ---
+  function decrypt(encryptedText) {
+    try {
+      const decoded = atob(encryptedText);
+      let result = '';
+      for (let i = 0; i < decoded.length; i++) {
+        const charCode = decoded.charCodeAt(i) ^ ENCRYPTION_KEY.charCodeAt(i % ENCRYPTION_KEY.length);
+        result += String.fromCharCode(charCode);
+      }
+      return result;
+    } catch (error) {
+      return '';
+    }
+  }
+
+  // --- Check if password has been verified for this IP ---
+  async function checkPasswordVerification() {
+    try {
+      const response = await fetch('/api/check-ip', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ ip: userIP })
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.verified) {
+          passwordVerified = true;
+          skipSessionCheck(); // Skip session check for verified IPs
+        }
+      }
+    } catch (error) {
+      console.log('Server not available, using fallback');
+      // Fallback to local storage if server is not available
+      const verifiedIPs = getCookie('verifiedIPs');
+      if (verifiedIPs) {
+        const ips = verifiedIPs.split(',');
+        if (ips.includes(userIP)) {
+          passwordVerified = true;
+          skipSessionCheck();
+        }
+      }
+    }
+  }
+
+  // --- Generate session ID ---
+  function generateSessionID() {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  }
+
+  // --- Check and create session ---
+  function checkAndCreateSession() {
+    const activeSession = getCookie('activeSession_' + userIP);
+    if (activeSession) {
+      // Another session is active
+      showSessionModal();
+      disableGame();
+    } else {
+      // Create new session
+      sessionID = generateSessionID();
+      setCookie('activeSession_' + userIP, sessionID, 1); // 1 day expiry
+      enableGame();
+    }
+  }
+
+  // --- Skip session check for verified IPs ---
+  function skipSessionCheck() {
+    if (passwordVerified) {
+      enableGame();
+      hideSessionModal(); // Hide session modal if it's showing
+    }
+  }
+
+  // --- Show session modal ---
+  function showSessionModal() {
+    sessionModal.style.display = 'block';
+  }
+
+  // --- Hide session modal ---
+  function hideSessionModal() {
+    sessionModal.style.display = 'none';
+  }
+
+  // --- Show password prompt ---
+  function showPasswordPrompt() {
+    passwordModal.style.display = 'block';
+    passwordInput.value = '';
+    passwordInput.focus();
+  }
+
+  // --- Hide password prompt ---
+  function hidePasswordPrompt() {
+    passwordModal.style.display = 'none';
+    passwordInput.value = '';
+  }
+
+  // --- Load statistics ---
+  function loadStats() {
+    totalPointsWon = parseInt(getCookie('totalPointsWon')) || 0;
+    gamesPlayed = parseInt(getCookie('gamesPlayed')) || 0;
+    perfectGames = parseInt(getCookie('perfectGames')) || 0;
+    highestBank = parseInt(getCookie('highestBank')) || 0;
+  }
+
+  // --- Save statistics ---
+  function saveStats() {
+    setCookie('totalPointsWon', totalPointsWon, 365);
+    setCookie('gamesPlayed', gamesPlayed, 365);
+    setCookie('perfectGames', perfectGames, 365);
+    setCookie('highestBank', highestBank, 365);
+  }
+
+  // --- Update statistics display ---
+  function updateStatsDisplay() {
+    document.getElementById('totalPointsWon').textContent = formatPoints(totalPointsWon);
+    document.getElementById('gamesPlayed').textContent = gamesPlayed;
+    document.getElementById('perfectGames').textContent = perfectGames;
+    document.getElementById('highestBank').textContent = formatPoints(highestBank);
+  }
+
+  // --- Show game over modal ---
+  function showGameOverModal(message, isWin) {
+    gameOverTitle.textContent = isWin ? '🎉 Victory!' : '💥 Game Over';
+    gameOverMessage.textContent = message;
+    gameOverModal.style.display = 'block';
+  }
+
+  // --- Hide game over modal ---
+  function hideGameOverModal() {
+    gameOverModal.style.display = 'none';
+  }
+
+  // --- Show stats modal ---
+  function showStatsModal() {
+    updateStatsDisplay();
+    statsModal.style.display = 'block';
+  }
+
+  // --- Hide stats modal ---
+  function hideStatsModal() {
+    statsModal.style.display = 'none';
+  }
+
+  // --- Show notification ---
+  function showNotification(message) {
+    notification.textContent = message;
+    notification.style.display = 'block';
+    setTimeout(() => {
+      notification.style.display = 'none';
+    }, 3000);
+  }
+
+  // --- Show password error ---
+  function showPasswordError() {
+    showNotification('Incorrect password!');
+  }
+
+  // --- Trigger rainbow confetti ---
+  function triggerRainbowConfetti() {
+    for (let i = 0; i < 100; i++) {
+      setTimeout(() => {
+        const confetti = document.createElement('div');
+        confetti.className = 'confetti';
+        // Start from bottom middle with some spread
+        const startX = 50 + (Math.random() - 0.5) * 20; // 50% center ± 10%
+        confetti.style.left = startX + 'vw';
+        confetti.style.bottom = '0';
+        confetti.style.animationDelay = Math.random() * 2 + 's';
+        document.body.appendChild(confetti);
+        
+        // Remove confetti after animation
+        setTimeout(() => {
+          if (confetti.parentNode) {
+            confetti.parentNode.removeChild(confetti);
+          }
+        }, 5000);
+      }, i * 50);
+    }
+  }
+
+  // --- Check password ---
+  async function checkPassword() {
+    const password = passwordInput.value;
+    if (password === 'Killp00l!') {
+      try {
+        // Save IP to server
+        const response = await fetch('/api/verify-ip', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ ip: userIP })
+        });
+        
+        if (response.ok) {
+          passwordVerified = true;
+          hidePasswordPrompt();
+          hideSessionModal(); // Hide session modal
+          toggleDebugMode(true);
+          enableGame(); // Enable game for verified IPs
+        } else {
+          showNotification('Failed to verify IP with server. Using local storage.');
+          // Fallback to local storage
+          const verifiedIPs = getCookie('verifiedIPs') || '';
+          const ips = verifiedIPs ? verifiedIPs.split(',') : [];
+          if (!ips.includes(userIP)) {
+            ips.push(userIP);
+            setCookie('verifiedIPs', ips.join(','), 365);
+          }
+          passwordVerified = true;
+          hidePasswordPrompt();
+          hideSessionModal(); // Hide session modal
+          toggleDebugMode(true);
+          enableGame();
+        }
+      } catch (error) {
+        console.log('Server not available, using local storage');
+        // Fallback to local storage
+        const verifiedIPs = getCookie('verifiedIPs') || '';
+        const ips = verifiedIPs ? verifiedIPs.split(',') : [];
+        if (!ips.includes(userIP)) {
+          ips.push(userIP);
+          setCookie('verifiedIPs', ips.join(','), 365);
+        }
+        passwordVerified = true;
+        hidePasswordPrompt();
+        hideSessionModal(); // Hide session modal
+        toggleDebugMode(true);
+        enableGame();
+      }
+    } else {
+      showPasswordError();
+      passwordInput.value = '';
+      passwordInput.focus();
+    }
+  }
+
+  // --- Disable game ---
+  function disableGame() {
+    game.style.pointerEvents = 'none';
+    game.style.opacity = '0.5';
+    cashOutBtn.disabled = true;
+    resetBtn.disabled = true;
+    setSlidersEnabled(false);
+  }
+
+  // --- Enable game ---
+  function enableGame() {
+    game.style.pointerEvents = 'auto';
+    game.style.opacity = '1';
+    setSlidersEnabled(true);
+  }
+
+  // --- Clean up session on page unload ---
+  function cleanupSession() {
+    if (sessionID) {
+      const currentSession = getCookie('activeSession_' + userIP);
+      if (currentSession === sessionID) {
+        // Only remove if it's our session
+        document.cookie = `activeSession_${userIP}=;path=/;expires=Thu, 01 Jan 1970 00:00:00 GMT`;
+      }
+    }
+  }
+
+  // --- Check session validity periodically ---
+  function checkSessionValidity() {
+    if (sessionID && userIP !== 'Loading...' && userIP !== 'Failed to load') {
+      const currentSession = getCookie('activeSession_' + userIP);
+      if (currentSession !== sessionID) {
+        // Our session was invalidated by another tab
+        showSessionModal();
+        disableGame();
+      }
+    }
+  }
+
+  // --- Update debug display ---
+  function updateDebugDisplay() {
+    if (ipLabel) {
+      ipLabel.textContent = userIP;
+    }
+  }
+
+  // --- Enable or disable sliders ---
+  function setSlidersEnabled(enabled) {
+    sizeSlider.disabled = !enabled;
+    mineSlider.disabled = !enabled;
+    wagerSlider.disabled = !enabled;
+    wagerInput.disabled = !enabled;
+  }
+
+  // --- Update wager slider max based on bankPoints ---
+  function updateWagerMax() {
+    wagerSlider.max = bankPoints;
+    if (wager > bankPoints) {
+      wager = bankPoints;
+      wagerSlider.value = wager;
+      wagerInput.value = wager;
+      wagerLabel.textContent = formatPoints(wager);
+    }
+  }
+
+// --- Multiplier calculation with tile count and multiplier factor ---
+function getMultiplier(n) {
+  if (n <= 0) return 0;
+  if (n === 1) return 0.8 * tileMultiplierFactor;
+  if (n === 2) return 0.9 * tileMultiplierFactor;
+  if (n === 3) return 1.0 * tileMultiplierFactor;
+  if (n === 4) return 1.3 * tileMultiplierFactor;
+
+  const baseMultiplier = 1.3;
+  const growthRate = 1.15;
+  const tileCount = n - 4;
+
+  // Mine factor: higher mine % = higher risk = higher reward
+  const mineFactor = 1 + (minePercent / 100) * 1.2;
+  
+  // Size factor: larger boards = more tiles = higher potential reward
+  const sizeFactor = Math.sqrt(size) / 2.24; // Normalize to 5x5 board
+  
+  // Combine factors for final multiplier
+  const adjustedMultiplier = baseMultiplier * mineFactor * sizeFactor;
+  
+  return tileMultiplierFactor * (adjustedMultiplier + adjustedMultiplier * Math.pow(growthRate, tileCount));
+}
+
+
+// --- Update mine label ---
+function updateMineLabel() {
+  const totalTiles = size * size;
+  const mineCount = Math.max(1, Math.floor(totalTiles * minePercent / 100));
+  if (mineCount === 1) {
+    mineLabel.textContent = `${minePercent}% (1 mine)`;
+  } else {
+    mineLabel.textContent = `${minePercent}% (${mineCount} mines)`;
+  }
+}
+
+// --- Board size slider input ---
+sizeSlider.addEventListener('input', () => {
+  size = parseInt(sizeSlider.value);
+  sizeLabel.textContent = size;
+  updateMineLabel();
+  createBoard();
+});
+
+// --- Mine percentage slider input ---
+mineSlider.addEventListener('input', () => {
+  minePercent = parseInt(mineSlider.value);
+  updateMineLabel();
+  createBoard();
+});
+
+
+  // --- Update win and topbar ---
+  function updateWinAmount() {
+    let prevMultiplier = getMultiplier(tilesRevealed - 1);
+    let currentMultiplier = getMultiplier(tilesRevealed);
+    let nextMultiplier = getMultiplier(tilesRevealed + 1);
+
+    let prevWin = Math.round(wager * prevMultiplier);
+    let currentWin = Math.round(wager * currentMultiplier);
+    let nextWin = Math.round(wager * nextMultiplier);
+
+    winLabel.textContent = formatPoints(currentWin);
+    prevWinLabel.textContent = formatPoints(prevWin);
+    nextWinLabel.textContent = formatPoints(nextWin);
+
+    prevMultLabel.textContent = `x${prevMultiplier.toFixed(2)}`;
+    currMultLabel.textContent = `x${currentMultiplier.toFixed(2)}`;
+    nextMultLabel.textContent = `x${nextMultiplier.toFixed(2)}`;
+
+    return currentWin;
+  }
+
+  // --- Update mine label ---
+  function updateMineLabel() {
+    const totalTiles = size * size;
+    const mineCount = Math.max(1, Math.floor(totalTiles * minePercent / 100));
+    mineLabel.textContent = `${minePercent}% (${mineCount} mines)`;
+  }
+
+  // --- Update gem label ---
+  function updateGemLabel() {
+    gemLabel.textContent = `${gemPercent}%`;
+  }
+
+  // --- Create the board ---
+  function createBoard() {
+    // Don't start game if wager > bankPoints (unless cheat mode)
+    if (!cheatMode && wager > bankPoints) {
+      alert(`Wager (${wager}) cannot exceed your bank points (${bankPoints}). Adjust wager.`);
+      return;
+    }
+
+    tiles = [];
+    game.innerHTML = '';
+    gameOver = false;
+    firstClick = true;
+    tilesRevealed = 0;
+    wagerDeducted = false;
+
+    resetBtn.style.display = 'none';
+    cashOutBtn.disabled = true;
+
+    setSlidersEnabled(true);
+
+    game.style.gridTemplateColumns = `repeat(${size}, 60px)`;
+
+    const totalTiles = size * size;
+    const mineCount = Math.floor(totalTiles * minePercent / 100);
+
+    for (let i = 0; i < totalTiles; i++) {
+      const tile = document.createElement('div');
+      tile.classList.add('tile');
+      tile.dataset.index = i;
+      tile.dataset.mine = 'false';
+      tile.dataset.gem = 'false';
+      tile.addEventListener('click', () => handleClick(tile));
+      game.appendChild(tile);
+      tiles.push(tile);
+    }
+
+    placeMinesAndGems(mineCount);
+
+    updateWinAmount();
+    updateDebugOverlay();
+  }
+
+  // --- Place mines and gems ---
+  function placeMinesAndGems(mineCount, excludeIndex = -1) {
+    const totalTiles = size * size;
+    const mines = Array(totalTiles).fill(false);
+    let placed = 0;
+
+    while (placed < mineCount && placed < totalTiles) {
+      const idx = Math.floor(Math.random() * totalTiles);
+      if (!mines[idx] && idx !== excludeIndex) {
+        mines[idx] = true;
+        placed++;
+      }
+    }
+
+    tiles.forEach((tile, index) => {
+      tile.dataset.mine = mines[index] ? 'true' : 'false';
+    });
+
+    tiles.forEach((tile, index) => {
+      if (tile.dataset.mine === 'false' && index !== excludeIndex && Math.random() < gemPercent / 100) {
+        tile.dataset.gem = 'true';
+      } else {
+        tile.dataset.gem = 'false';
+      }
+    });
+  }
+
+  // --- Check if all safe tiles have been revealed ---
+  function checkAllSafeTilesRevealed() {
+    const totalTiles = size * size;
+    const mineCount = Math.max(1, Math.floor(totalTiles * minePercent / 100));
+    const safeTiles = totalTiles - mineCount;
+    return tilesRevealed >= safeTiles;
+  }
+
+  // --- Reveal all mines ---
+  function revealAllMines() {
+    tiles.forEach(tile => {
+      if (tile.dataset.mine === 'true' && !tile.classList.contains('revealed')) {
+        tile.classList.add('bomb', 'revealed');
+      }
+    });
+  }
+
+  // --- Handle tile click ---
+  function handleClick(tile) {
+    if (tile.classList.contains('revealed') || gameOver) return;
+
+    if (firstClick) {
+      setSlidersEnabled(false);
+      const index = parseInt(tile.dataset.index);
+      if (tile.dataset.mine === 'true' || tile.dataset.gem === 'true') {
+        const totalTiles = size * size;
+        const mineCount = Math.floor(totalTiles * minePercent / 100);
+        placeMinesAndGems(mineCount, index);
+      }
+      firstClick = false;
+      if (!cheatMode && !wagerDeducted) {
+        bankPoints -= wager;
+        wagerDeducted = true;
+        updateBankDisplay();
+        setCookie('bankPoints', bankPoints);
+      }
+    }
+
+    tile.classList.add('revealed');
+
+    if (tile.dataset.mine === 'true') {
+      tile.classList.add('bomb');
+      revealAllMines();
+      gameOver = true;
+      resetBtn.style.display = 'inline-block';
+      cashOutBtn.disabled = true;
+      showGameOverModal('Boom! You hit a mine!', false);
+      return;
+    }
+
+    // Add gem overlay if it's a gem tile
+    if (tile.dataset.gem === 'true') {
+      const gemOverlay = document.createElement('div');
+      gemOverlay.classList.add('overlay-icon', 'gem');
+      gemOverlay.style.setProperty('opacity', '1', 'important'); // Make it fully visible
+      gemOverlay.style.width = '42px'; // Make it bigger
+      gemOverlay.style.height = '42px'; // Make it bigger
+      gemOverlay.style.top = '9px'; // Center it better
+      gemOverlay.style.left = '9px'; // Center it better
+      gemOverlay.style.zIndex = '100'; // Very high z-index
+      gemOverlay.style.position = 'absolute'; // Ensure absolute positioning
+      tile.appendChild(gemOverlay);
+    }
+
+    // Gem tile counts as 6 tiles revealed (1 + 5 bonus)
+    if (tile.dataset.gem === 'true') {
+      tilesRevealed += 6;
+    } else {
+      tilesRevealed++;
+    }
+
+    updateWinAmount();
+    cashOutBtn.disabled = false;
+
+    // Check if all safe tiles have been revealed
+    if (checkAllSafeTilesRevealed()) {
+      // Update statistics for perfect game
+      const winAmount = updateWinAmount();
+      totalPointsWon += winAmount;
+      gamesPlayed++;
+      perfectGames++;
+      if (bankPoints > highestBank) {
+        highestBank = bankPoints;
+      }
+      saveStats();
+      
+      gameOver = true;
+      resetBtn.style.display = 'inline-block';
+      cashOutBtn.disabled = true;
+      showGameOverModal('Congratulations! You revealed all safe tiles!', true);
+      triggerRainbowConfetti();
+    }
+
+    updateDebugOverlay();
+  }
+
+  // --- Cash out ---
+  cashOutBtn.addEventListener('click', () => {
+    if (gameOver || tilesRevealed === 0) return;
+    const winAmount = updateWinAmount();
+    bankPoints += winAmount;
+    updateBankDisplay();
+    setCookie('bankPoints', bankPoints);
+
+    // Update statistics
+    totalPointsWon += winAmount;
+    gamesPlayed++;
+    if (bankPoints > highestBank) {
+      highestBank = bankPoints;
+    }
+    saveStats();
+
+    gameOver = true;
+    resetBtn.style.display = 'inline-block';
+    cashOutBtn.disabled = true;
+    showGameOverModal(`You cashed out and won ${formatPoints(winAmount)} points!`, true);
+  });
+
+  // --- Reset game ---
+  resetBtn.addEventListener('click', () => {
+    gameOver = false;
+    firstClick = true;
+    tilesRevealed = 0;
+    wagerDeducted = false;
+    createBoard();
+  });
+
+  // --- Sliders and inputs update ---
+  sizeSlider.addEventListener('input', () => {
+    size = parseInt(sizeSlider.value);
+    sizeLabel.textContent = size;
+    createBoard();
+  });
+
+  mineSlider.addEventListener('input', () => {
+    minePercent = parseInt(mineSlider.value);
+    updateMineLabel();
+    createBoard();
+  });
+
+  gemSlider.addEventListener('input', () => {
+    gemPercent = parseInt(gemSlider.value);
+    updateGemLabel();
+    createBoard();
+  });
+
+  wagerSlider.addEventListener('input', () => {
+    wager = parseInt(wagerSlider.value);
+    wagerLabel.textContent = formatPoints(wager);
+    wagerInput.value = wager;
+  });
+
+  wagerInput.addEventListener('change', () => {
+    let val = parseInt(wagerInput.value);
+    if (isNaN(val) || val < 10) val = 10;
+    if (val > bankPoints) val = bankPoints;
+    wager = val;
+    wagerSlider.value = val;
+    wagerLabel.textContent = formatPoints(val);
+  });
+
+  // --- Multiplier factor slider ---
+  multFactorSlider.addEventListener('input', () => {
+    tileMultiplierFactor = parseFloat(multFactorSlider.value);
+    multFactorLabel.textContent = tileMultiplierFactor.toFixed(2);
+    updateWinAmount();
+  });
+
+  // --- Toggle debug controls and cheat mode ---
+  function toggleDebugMode(on) {
+    debugEnabled = on;
+    debugControls.style.display = on ? 'block' : 'none';
+    cheatIndicator.style.display = on ? 'block' : 'none';
+    cheatMode = on;
+    if (cheatMode) {
+      bankPointsBeforeCheats = bankPoints;
+    } else {
+      // Revert to previous bank if cheat mode turned off
+      if (bankPointsBeforeCheats !== null) {
+        bankPoints = bankPointsBeforeCheats;
+        updateBankDisplay();
+      }
+      // Reset debug settings to original values
+      gemPercent = originalGemPercent;
+      tileMultiplierFactor = originalTileMultiplierFactor;
+      gemSlider.value = gemPercent;
+      multFactorSlider.value = tileMultiplierFactor;
+      gemLabel.textContent = `${gemPercent}%`;
+      multFactorLabel.textContent = tileMultiplierFactor.toFixed(2);
+      updateWinAmount();
+      createBoard(); // Recreate board with original settings
+    }
+    updateDebugOverlay();
+  }
+
+  // --- Debug overlay: show all gems and bombs semi-transparent ---
+  function updateDebugOverlay() {
+    if (!debugEnabled) {
+      tiles.forEach(tile => {
+        // Remove overlays only if they're not gem overlays on revealed tiles
+        const overlay = tile.querySelector('.overlay-icon');
+        if (overlay && !(tile.classList.contains('revealed') && tile.dataset.gem === 'true')) {
+          tile.removeChild(overlay);
+        }
+        tile.style.opacity = '1';
+      });
+      return;
+    }
+
+    tiles.forEach(tile => {
+      // Remove old overlays
+      let overlay = tile.querySelector('.overlay-icon');
+      if (overlay) tile.removeChild(overlay);
+
+      // Overlay for bombs
+      if (tile.dataset.mine === 'true' && !tile.classList.contains('revealed')) {
+        overlay = document.createElement('div');
+        overlay.classList.add('overlay-icon', 'bomb');
+        tile.appendChild(overlay);
+      }
+      // Overlay for gems
+      else if (tile.dataset.gem === 'true' && !tile.classList.contains('revealed')) {
+        overlay = document.createElement('div');
+        overlay.classList.add('overlay-icon', 'gem');
+        tile.appendChild(overlay);
+      }
+
+      // Make unrevealed tiles semi-transparent in debug mode
+      if (!tile.classList.contains('revealed')) {
+        tile.style.opacity = '0.5';
+      } else {
+        tile.style.opacity = '1';
+      }
+    });
+  }
+
+  // --- Keybinding for toggling cheat mode (Ctrl+Alt+D) ---
+  window.addEventListener('keydown', e => {
+    if (e.ctrlKey && e.altKey && e.code === 'KeyD') {
+      if (!debugEnabled) {
+        if (passwordVerified) {
+          toggleDebugMode(true);
+        } else {
+          showPasswordPrompt();
+        }
+      } else {
+        toggleDebugMode(false);
+      }
+    }
+  });
+
+  // --- Recheck session button ---
+  let checkingTimeout = null;
+  
+  recheckBtn.addEventListener('click', () => {
+    if (recheckBtn.disabled) {
+      // Cancel the checking process
+      if (checkingTimeout) {
+        clearTimeout(checkingTimeout);
+        checkingTimeout = null;
+      }
+      recheckBtn.disabled = false;
+      recheckBtn.innerHTML = 'Recheck Session';
+      return;
+    }
+    
+    // Show loading state
+    recheckBtn.disabled = true;
+    recheckBtn.innerHTML = '<span class="loading-spinner"></span>Checking...';
+    
+          // Simulate a small delay to show loading
+      checkingTimeout = setTimeout(() => {
+        const activeSession = getCookie('activeSession_' + userIP);
+        if (!activeSession) {
+          // No active session, we can create one
+          sessionID = generateSessionID();
+          setCookie('activeSession_' + userIP, sessionID, 1);
+          hideSessionModal();
+          enableGame();
+        } else {
+          // Still has active session - show message in modal
+          const modalContent = document.querySelector('#sessionModalContent p');
+          modalContent.innerHTML = 'Another session is still active. Please close other tabs first, then click "Recheck" to try again.';
+          // Reset button to normal state
+          recheckBtn.disabled = false;
+          recheckBtn.innerHTML = 'Recheck Session';
+        }
+        checkingTimeout = null;
+      }, 1000); // 1 second delay to show loading
+  });
+
+  // --- Password modal button handlers ---
+  passwordBtn.addEventListener('click', checkPassword);
+  cancelBtn.addEventListener('click', hidePasswordPrompt);
+  
+  // --- Password input enter key handler ---
+  passwordInput.addEventListener('keypress', e => {
+    if (e.key === 'Enter') {
+      checkPassword();
+    }
+  });
+
+  // --- Stats button handler ---
+  statsBtn.addEventListener('click', showStatsModal);
+
+  // --- Game over modal button handler ---
+  gameOverBtn.addEventListener('click', hideGameOverModal);
+
+  // --- Close stats modal button handler ---
+  closeStatsBtn.addEventListener('click', hideStatsModal);
+
+  // --- Clean up session when page unloads ---
+  window.addEventListener('beforeunload', cleanupSession);
+
+  // --- Initial Setup ---
+  size = parseInt(sizeSlider.value); // Ensure size matches slider
+  loadBank(); // Load bank from cookies
+  loadStats(); // Load statistics
+  getUserIP(); // Get user IP address
+  updateMineLabel();
+  updateGemLabel();
+  sizeLabel.textContent = size;
+  wagerLabel.textContent = formatPoints(wager);
+  wagerInput.value = wager;
+  multFactorLabel.textContent = tileMultiplierFactor.toFixed(2);
+  updateBankDisplay();
+  updateWagerMax();
+  createBoard();
+  
+  // Check session validity every 5 seconds
+  setInterval(checkSessionValidity, 5000);
+</script>
+</body>
+</html>
